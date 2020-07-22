@@ -1,0 +1,77 @@
+import arcpy
+from arcpy import env
+from arcpy.sa import *
+
+###Filtro nas imagens classificadas
+
+def majory(gdb_tratamento,gdb_processamento):
+	#Variaveis ###############
+    arcpy.env.workspace = gdb_tratamento
+    arcpy.env.processamento = gdb_processamento
+
+    in_Raster = arcpy.GetParameterAsText(0) or "mosaic_class_nordeste"
+
+    #print(type(in_Raster),in_Raster)
+
+    #Analisando como o input precisa ser entregue
+
+    outMajFilt = MajorityFilter( in_Raster, "EIGHT", "MAJORITY")
+
+    #Analisando como o input precisa ser entregue
+
+    outMajFilt.save(arcpy.env.processamento + "\\" + "mosaic_class_nordeste_filter2")
+    
+    return	outMajFilt
+
+
+def boundary(gdb_entrada):
+    
+    #Variaveis ###############
+    arcpy.env.workspace = gdb_entrada
+
+    in_Raster = arcpy.GetParameterAsText(0) or "mosaic_class_nordeste_filter2"
+
+    OutBndCln = BoundaryClean(in_Raster, "NO_SORT", "TWO_WAY")
+    OutBndCln.save(arcpy.env.processamento + "\\" + "boundary")
+
+    return OutBndCln
+
+def region(gdb_entrada, input):
+
+    #Variaveis ###############
+    arcpy.env.workspace = gdb_entrada
+
+    outRgnGrp = RegionGroup(input, "EIGHT", "WITHIN", "ADD_LINK", )
+    outRgnGrp.save(arcpy.env.processamento + "\\" + "region_group")
+
+    return outRgnGrp
+
+
+def extract(gdb_entrada, input):
+    #Variaveis ###############
+    arcpy.env.workspace = gdb_entrada
+
+    attExtract = ExtractByAttributes(input , "SIZE > 20000") 
+    attExtract.save(arcpy.env.processamento + "\\" + "extracted")
+
+    return attExtract
+
+def mordidela(gdb_entrada, input):
+
+    #Variaveis ###############
+    arcpy.env.workspace = gdb_entrada
+
+    nibbleOut = Nibble(input, "snow", "DATA_ONLY")
+    nibbleOut.save()
+    return
+
+if __name__ == "__main__":
+	
+    env.workspace = "G:\S2_Safra_2019\Dados_Nordeste\gdb\\tratamento_nordeste.gdb"
+    processamento = "G:\S2_Safra_2019\Dados_Nordeste\gdb\\tratamento_nordeste.gdb"
+    
+    #in_bound = majory(env.workspace,processamento)
+    in_region = boundary(env.workspace)
+    #in_nibble = region(env.workspace, in_region)
+
+    #output = mordidela(env.workspace, in_nibble)
