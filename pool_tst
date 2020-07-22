@@ -1,0 +1,20 @@
+import glob
+import os
+import arcpy
+from multiprocessing import Pool
+
+def arquivos(achado):
+    nome_shp = achado[0:len(achado)-3] + "shp" #remover tif + .shp
+    print(nome_shp)
+    print(achado)
+    arcpy.RasterToPolygon_conversion(achado, nome_shp, "NO_SIMPLIFY","VALUE","MULTIPLE_OUTER_PART")
+
+if __name__ == "__main__":
+    list_of_files = glob.glob("F:\\SAFRA_2019\\testeimg2907\\Imagens\\Teste\\*.tif")
+    p = Pool(3)
+    p.map(arquivos,list_of_files)
+    p.close
+    p.join
+    #for file_tif in list_of_files:
+        #arquivos(file_tif)
+        #p.map(arquivos,file_tif)
