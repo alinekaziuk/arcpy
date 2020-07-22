@@ -1,0 +1,75 @@
+//Imagem para SENTINEL 2 
+var img= ee.ImageCollection ('COPERNICUS/S2') 
+  .filterDate ('2019-06-21', '2019-07-01') //fechas disponibles ('2015-07-01' - actualidad)
+  .filterBounds (limite_mt) 
+  .filterMetadata ('CLOUDY_PIXEL_PERCENTAGE', 'Less_Than', 1);
+var SentinelFiltro = ee.Image(img.median());
+var SentinelClip = SentinelFiltro.clip (limite_mt);
+
+Map.addLayer (SentinelClip, {
+  max: 4000, 
+  min: 0.0, 
+  gamma: 1.0,
+  bands: ['B4','B3','B2']}, 
+  'Imagen Sentinel 2');
+  
+print (SentinelFiltro);
+Map.centerObject(SentinelFiltro, 4);
+
+var bandas = ['B2','B3','B4']
+SentinelFiltro= SentinelFiltro.select(bandas)
+
+var amostra = agua.merge(abertura).merge(algodao).merge(arroz).merge(bachiaria).merge(banana).merge(cana).merge(cobertura).merge(eucalipto).merge(feijao).merge(gergelim).merge(girassol).merge(mamona).merge(matanativa).merge(matanativa_serra).merge(milheto).merge(milho).merge(pastagemdegradada).merge(pastagemplantada).merge(pousio).merge(seringa).merge(sorgo).merge(teca).merge(bachiaria_safra);
+print(amostra.size())
+print(amostra.limit(10))
+
+var amostrasRandom = amostra.randomColumn().sort('random')
+print(amostrasRandom.limit(10))
+
+amostra = amostrasRandom.limit(200)
+
+//SEMPRE EXPORTE SUAS AMOSTRAS JÁ COM AS BANDAS PARA A CLASSIFICAÇÃO
+
+//O metodo abaixo recupera os valores de bandas para cada ponto coletado mas não é o ideal, pois gera
+//muito processamento do GEE.
+var treinamento = amostra.map(function(a){
+  var meanDictionary = SentinelFiltro.reduceRegion({
+    reducer: ee.Reducer.mean(),
+    geometry: ee.Feature(a).geometry(),
+    scale: 10,
+    maxPixels: 1e9
+  });
+  
+  var classe = ee.Feature(a).get('class')
+  var dicClass =  ee.Dictionary({'class':classe})
+  var dic = dicClass.combine(meanDictionary)
+  return ee.Feature(ee.Feature(a).geometry(),dic) 
+})
+print(treinamento.size())
+print(treinamento.limit(10))
+Map.addLayer(treinamento)
+
+//-----------------
+
+var classificacao = ee.Classifier.cart().train({
+  features: treinamento,
+  classProperty: 'class',
+  inputProperties: bandas
+});
+
+var classificacao = SentinelClip.clip(geometry1).classify(classificacao);
+
+Map.addLayer(classificacao, {min:0, max:23,pallete:['green','blue','magenta']},'classificação');
+
+//A variável classificação é do tipo image e vc deve usar o Export.image para exportar image.
+Export.image.toDrive({
+  image: classificacao,
+  description:'classificacao_randon_forest',
+  scale: 10,
+  region: limite_mt
+});
+
+//:::Notas::: 
+
+//O Mato Grosso é o terceiro maior Estado do país. É necessário setoriza-lo 
+//pois o GEE não oconseguirá processa-las desta forma.
